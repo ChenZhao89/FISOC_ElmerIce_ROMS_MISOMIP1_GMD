@@ -31,4 +31,8 @@ Elmer/Ice
 URL https://github.com/ElmerCSC/elmerfem
 SSH access to the relevant commit:
 git clone -b devel git@github.com:ElmerCSC/elmerfem.git
-git checkout 8f9f2c70
+git checkout 925deb7075d73991fc6c06bf2d3be37041ef0c1f
+
+Folder CTRL includes the experiment setup for experiment CTRL in the paper. Please contact the leading author for modifications of other experiments. 
+
+

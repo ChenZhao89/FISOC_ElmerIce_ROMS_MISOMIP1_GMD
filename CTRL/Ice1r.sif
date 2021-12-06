@@ -1,0 +1,270 @@
+$name="Ice1rOne"
+
+$yearinsec = 360.0*24*60*60
+$rhoi = 918.0/(1.0e6*yearinsec^2)   
+$rhow = 1028.0/(1.0e6*yearinsec^2)
+$gravity = -9.81*yearinsec^2
+
+$n = 3.0
+$m = 1.0/3.0
+$C = 1.0e-2 ! MPam-1/3a1/3
+
+!A given in MPa-3/a (2e-17*1e6^(-3) Pa-3/a)
+$A=20.0
+
+$eta = (2.0*A)^(-1.0/n)
+!$eta = (2.0*100.0)^(-1.0/n) 
+!$eta=0.2924017738212866
+
+$zsl=0.0
+
+$dt = 1296000.0 / yearinsec ! 15 days
+
+
+
+
+Header
+  Mesh DB "SSA_Mesh"
+End
+
+Constants
+  sea level = Real 0.0
+  water density = Real $rhow
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Simulation
+  Coordinate System  = Cartesian 2D 
+  Simulation Type = Transient     
+
+  Timestepping Method = "bdf"
+  BDF Order = 1
+  Output Intervals = 1
+  Timestep Intervals = 1
+  Timestep Sizes = Real $dt
+
+  Steady State Min Iterations = 1
+  Steady State Max Iterations = 1
+
+  Post File = "$name$.vtu"
+  OutPut File = "$name".result"
+  Binary Output = Logical True
+  Output Intervals = 24
+
+  Restart File = "Run4.result"
+  Restart Position = Integer 0
+  Restart Before Initial Conditions = Logical False
+
+
+  max output level = 11
+
+  Initialize Dirichlet Conditions = logical False
+
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!For the SSA
+Body 1
+  Equation = 1
+  Body Force = 1
+  Material = 1
+  Initial Condition = 1
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Initial Condition 1
+  Melt = Real -0.0
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Body Force 1
+  Flow BodyForce 1 = Real 0.0                          
+  Flow BodyForce 2 = Real 0.0                          
+  Flow BodyForce 3 = Real $gravity
+  Top Surface Accumulation = Real 0.3
+  !Bottom Surface Accumulation = Equals meltRate
+  Bottom Surface Accumulation = Variable meltRate
+      Real MATC "0.0 - tx(0)"
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Material 1
+
+! Material properties
+  Viscosity Exponent = Real $1.0/n          
+  Critical Shear Rate = Real 1.0e-16
+
+  SSA Mean Viscosity = Real $eta
+  SSA Mean Density = Real $rhoi
+
+  SSA Critical Thickness = Real 1.0e00
+
+! slip coeffs
+  SSA Friction Law = String "weertman"
+  SSA Friction Exponent = Real $m
+  SSA Friction Parameter = Real $C
+  SSA Friction Linear Velocity = REAL 1.0e-5
+  SSA Min Effective Pressure = Real 1.0e-6
+
+  Min H = Real 1.0e00
+
+!! For Save scalar to compute mass flux (=H*SSA_UV)
+   Flux = Equals H
+End
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! Apply flotaison; from H compute Zb and Zs
+Solver 1
+   !Exec Solver = never
+   Equation = "Flotation"
+   Variable = -dofs 1 GroundedMask
+   Procedure = "/scratch/gh8/cxz581/Elmer_FISOC/Solvers/Flotation2" "Flotation"
+End
+
+Solver 2
+   Equation = "SSA"
+   !Exec Solver = never
+   Variable = -dofs 2 "SSAVelocity"
+
+   Procedure = "/scratch/gh8/cxz581/Elmer_FISOC/Solvers/SSAStar" "SSABasalSolver"
+   !Procedure = "SSAStar" "SSABasalSolver"
+
+   Linear System Solver = Direct
+   Linear System Direct Method = cpardiso
+
+   Nonlinear System Max Iterations = 50
+   Nonlinear System Convergence Tolerance  = 1.0e-08
+   Nonlinear System Newton After Iterations = 3
+   Nonlinear System Newton After Tolerance = 1.0e-03
+   Nonlinear System Relaxation Factor = 1.00
+
+   Nonlinear System Newton Max divergent iterations = Integer 4
+
+   Sub-Element GL parameterization = Logical True
+   GL integration points number = Integer 20
+
+   !Mumps percentage increase working space = Integer 60
+
+   Exported Variable 1 = Zs
+   Exported Variable 2 = Zb
+   Exported Variable 3 = bedrock
+   Exported Variable 4 = h
+   Exported Variable 5 = GroundedMask
+   Exported Variable 6 = SSAVelocity
+
+End
+
+!! Thickness solver
+Solver 3
+   Equation = "Thickness"
+   !Exec Solver = never
+   Variable = -dofs 1 "H"
+
+   Exported Variable 1 = -dofs 1 "H Residual"
+   Exported Variable 2 = -dofs 1 DhDt
+   Exported Variable 3 = -dofs 1 Melt
+   Exported Variable 4 = -dofs 1 Bottom Surface Accumulation
+   Exported Variable 5 = -dofs 1 meltRate
+
+
+   Procedure = "/scratch/gh8/cxz581/Elmer_FISOC/Solvers/ThicknessSolver_MT_Melt" "ThicknessSolver"
+     Before Linsolve = "EliminateDirichlet" "EliminateDirichlet"
+
+   Linear System Solver = Direct
+   Linear System Direct Method = cpardiso
+   !Mumps percentage increase working space = Integer 60
+
+   Linear System Convergence Tolerance = 1.0e-12
+
+! equation is linear if no min/max
+   Nonlinear System Max Iterations = 15
+   Nonlinear System Convergence Tolerance  = 1.0e-09
+   Nonlinear System Relaxation Factor = 1.00
+
+  Apply Dirichlet = Logical True
+  Stabilization Method = stabilized
+  Compute dHdT = Logical True
+ 
+  Melt Variable Name = String "Melt"
+
+!!  the convection velocity (mean horizontal velocity)
+    Flow Solution Name = String "SSAVelocity"
+End
+
+Solver 4
+   Exec Solver = After Simulation
+   Equation = "FlotationB"
+   Variable = GroundedMask
+   Procedure = "/scratch/gh8/cxz581/Elmer_FISOC/Solvers/Flotation2" "Flotation"
+End
+
+Solver 5
+   Exec Solver = After Timestep
+   Procedure = "SaveData" "SaveScalars"
+   Equation = SaveScalars
+   Filename = "IntH.dat"
+
+   Variable 1 = H
+   Operator 1 = int
+   Parallel Reduce = Logical True
+   Variable 2 = groundedmask
+   Operator 2 = volume
+End
+
+Solver 6
+!  Exec Solver = String "never"
+  Exec Solver = String "after saving"
+  Equation = String "ResultOutput"
+  Procedure = File "ResultOutputSolve" "ResultOutputSolver"
+  Save Geometry Ids = Logical True
+  Output File Name = File $name
+  Output Format = String "vtu"
+  Output Directory = File "./vtuoutputs"
+  Vtu Format = Logical True
+  Save Geometry Ids = Logical True
+End
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Equation 1
+  Active Solvers(6) = 1 2 3 4 5 6
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Boundary Condition 1
+  name = "side1"
+  Target Boundaries = 1 
+   
+  Save Scalars = Logical True
+
+  SSAVelocity 2 = Real 0.0
+
+End
+
+Boundary Condition 2
+  name = "calving front"
+  Target Boundaries = 2
+  
+  Save Scalars = Logical True
+
+  Calving Front = Logical True
+
+End
+
+Boundary Condition 3
+  name = "side2"
+  Target Boundaries = 3
+
+  Save Scalars = Logical True
+
+    SSAVelocity 2 = Real 0.0
+End
+
+Boundary Condition 4
+  name = "inflow"
+  Target Boundaries = 4
+
+  Save Scalars = Logical True
+
+  SSAVelocity 1 = Real 0.0
+  SSAVelocity 2 = Real 0.0
+End

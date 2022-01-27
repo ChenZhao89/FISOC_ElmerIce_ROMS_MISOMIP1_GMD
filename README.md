@@ -1,6 +1,6 @@
 # FISOC_ElmerIce_ROMS_MISOMIP1_GMD
 Data and code available for GMD paper
-This directory should contain all the files and information needed to run the "Assessment of oscillation feature in sub-shelf melting from idealized coupled ice sheet ocean models" GMD idealised simulations.
+This directory should contain all the files and information needed to run the "Evaluation of an emergent feature of sub-shelf melt oscillations from an idealised coupled ice-sheet/ocean model using FISOC(v1.1)-ROMSIceShelf(v1.0)-Elmer/Ice(v9.0)" GMD idealised simulations.
 Input files are placed in subdirectories named by CTRL
 Coupling code
 

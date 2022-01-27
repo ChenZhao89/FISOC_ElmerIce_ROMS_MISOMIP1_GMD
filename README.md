@@ -1,5 +1,6 @@
 # FISOC_ElmerIce_ROMS_MISOMIP1_GMD
-Data and code available for GMD paper
+Data and code available for GMD paper "Evaluation of an emergent feature of sub-shelf melt oscillations from an idealised coupled ice-sheet/ocean model using FISOC(v1.1)-ROMSIceShelf(v1.0)-Elmer/Ice(v9.0)"
+
 This directory should contain all the files and information needed to run the "Evaluation of an emergent feature of sub-shelf melt oscillations from an idealised coupled ice-sheet/ocean model using FISOC(v1.1)-ROMSIceShelf(v1.0)-Elmer/Ice(v9.0)" GMD idealised simulations.
 Input files are placed in subdirectories named by CTRL
 Coupling code
@@ -35,4 +36,5 @@ git checkout 925deb7075d73991fc6c06bf2d3be37041ef0c1f
 
 Folder CTRL includes the experiment setup for CTRL in the paper. Please contact the leading author (Chen.Zhao@utas.edu.au) for modifications of other experiments. 
 
+DOI: https://zenodo.org/badge/latestdoi/435366851
 
